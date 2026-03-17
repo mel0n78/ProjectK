@@ -1,0 +1,40 @@
+name: 毎日ニュース分析 & LINE通知
+
+on:
+  schedule:
+    # 毎朝7時 JST（= UTC 22:00 前日）
+    - cron: '0 22 * * *'
+  workflow_dispatch:  # 手動実行ボタン
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for Claude CLI)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Run news analyzer
+        env:
+          LINE_NOTIFY_TOKEN: ${{ secrets.LINE_NOTIFY_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          chmod +x ./daily_news_analyzer.sh
+          ./daily_news_analyzer.sh
+
+      - name: Upload report as artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-report-${{ github.run_id }}
+          path: reports/
+          retention-days: 30
